@@ -1,0 +1,9 @@
+### Go ###
+# Binaries for programs and plugins
+*.exe
+*.exe~
+main
+.vscode
+
+# Test binary, built with `go test -c`
+*.test

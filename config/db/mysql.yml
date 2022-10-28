@@ -1,0 +1,13 @@
+database:
+  eMoney:
+    host: localhost
+    port: 5306
+    username: root
+    password: root
+    dbname: e_money_services
+  topUp:
+    host: localhost
+    port: 5306
+    username: root
+    password: root
+    dbname: top_up_services
