@@ -1,11 +1,9 @@
 module github.com/vins7/top-up-services
 
-replace github.com/vins7/module-protos => ./../module-protos
-
 require (
 	github.com/golang-jwt/jwt/v4 v4.4.1
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/vins7/module-protos v1.0.5
+	github.com/vins7/module-protos v1.0.7
 	google.golang.org/grpc v1.47.0
 	gorm.io/driver/mysql v1.4.3
 	gorm.io/gorm v1.23.8
