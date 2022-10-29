@@ -18,5 +18,5 @@ setup:
 build-docker: build
 	@docker build --tag top-up-services .
 
-protoc-docker: build
+protoc-docker:
 	@docker container create --name top-up-services -p 9904:9904/tcp top-up-services
