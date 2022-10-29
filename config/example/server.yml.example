@@ -1,0 +1,7 @@
+server:
+  app:
+    name: top-up-services
+  grpc:
+    tls: false
+    host: localhost
+    port: 9904
