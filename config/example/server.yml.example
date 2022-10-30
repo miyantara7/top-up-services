@@ -3,5 +3,5 @@ server:
     name: top-up-services
   grpc:
     tls: false
-    host: localhost
+    host: top-up-services
     port: 9904

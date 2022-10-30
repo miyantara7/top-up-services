@@ -1,12 +1,12 @@
 database:
   eMoney:
-    host: localhost
+    host: mysql-service
     port: 3306
     username: root
     password: root
     dbname: e_money_services
   topUp:
-    host: localhost
+    host: mysql-service
     port: 3306
     username: root
     password: root
