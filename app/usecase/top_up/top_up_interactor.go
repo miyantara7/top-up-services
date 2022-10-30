@@ -2,6 +2,7 @@ package top_up
 
 import (
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/mitchellh/mapstructure"
@@ -27,6 +28,9 @@ func NewTopUpUsecase(client client.EMoneyRepo, db db.TopUpRepo) TopUp {
 
 func (u *TopUpUsecase) TopUpBalance(in interface{}) error {
 	var req *model.TopUpRequest
+	var errTrxHist error
+	var errUpdateBal error
+	wt := new(sync.WaitGroup)
 
 	if err := mapstructure.Decode(in, &req); err != nil {
 		return err
@@ -58,21 +62,35 @@ func (u *TopUpUsecase) TopUpBalance(in interface{}) error {
 		UserId:  req.UserId,
 		Balance: &vBalance,
 	}
+	wt.Add(2)
+	go func() {
+		defer wt.Done()
+		err := make(chan error, 1)
+		UpdateBalance(u.db, dataBalance, err)
+		errUpdateBal = <-err
+	}()
 
-	if err = u.db.UpdateBalance(dataBalance); err != nil {
-		return err
+	go func() {
+		defer wt.Done()
+		err := make(chan error, 1)
+		InsertTransactionHistory(u.db, &entity.TransactionHistory{
+			UserId:      req.UserId,
+			NoKartu:     req.NoKartu,
+			CreatedDate: time.Now().Format("2006-01-02 15:04:05"),
+			UpdateDate:  time.Now().Format("2006-01-02 15:04:05"),
+			Setor:       req.Balance,
+			Tarik:       "0",
+			Balance:     strconv.Itoa(vBalance),
+		}, err)
+		errTrxHist = <-err
+	}()
+
+	wt.Wait()
+	if errTrxHist != nil {
+		return errTrxHist
 	}
-
-	if err := u.db.InsertTransactionHistory(&entity.TransactionHistory{
-		UserId:      req.UserId,
-		NoKartu:     req.NoKartu,
-		CreatedDate: time.Now().Format("2006-01-02 15:04:05"),
-		UpdateDate:  time.Now().Format("2006-01-02 15:04:05"),
-		Setor:       req.Balance,
-		Tarik:       "0",
-		Balance:     strconv.Itoa(vBalance),
-	}); err != nil {
-		return err
+	if errUpdateBal != nil {
+		return errUpdateBal
 	}
 
 	return nil
@@ -80,6 +98,10 @@ func (u *TopUpUsecase) TopUpBalance(in interface{}) error {
 
 func (u *TopUpUsecase) Payment(in interface{}) error {
 	var req *model.PaymentRequest
+	var errTrxHist error
+	var errUpdateBal error
+	var errInsertTopUp error
+	wt := new(sync.WaitGroup)
 
 	if err := mapstructure.Decode(in, &req); err != nil {
 		return err
@@ -128,31 +150,64 @@ func (u *TopUpUsecase) Payment(in interface{}) error {
 		Balance: &vBalance,
 	}
 
-	if err = u.db.UpdateBalance(dataBalance); err != nil {
-		return err
-	}
+	wt.Add(3)
+	go func() {
+		defer wt.Done()
+		err := make(chan error, 1)
+		UpdateBalance(u.db, dataBalance, err)
+		errUpdateBal = <-err
+	}()
 
-	if err := u.db.InsertTopUp(&entity.TopUp{
-		UserId:  req.UserId,
-		NoKartu: req.NoKartu,
-		Product: biller.Product,
-		Price:   biller.Price,
-		Fee:     biller.Fee,
-	}); err != nil {
-		return err
-	}
+	go func() {
+		defer wt.Done()
+		err := make(chan error, 1)
+		InsertTopUp(u.db, &entity.TopUp{
+			UserId:  req.UserId,
+			NoKartu: req.NoKartu,
+			Product: biller.Product,
+			Price:   biller.Price,
+			Fee:     biller.Fee,
+		}, err)
+		errInsertTopUp = <-err
+	}()
 
-	if err := u.db.InsertTransactionHistory(&entity.TransactionHistory{
-		UserId:      req.UserId,
-		NoKartu:     req.NoKartu,
-		CreatedDate: time.Now().Format("2006-01-02 15:04:05"),
-		UpdateDate:  time.Now().Format("2006-01-02 15:04:05"),
-		Setor:       "0",
-		Tarik:       strconv.Itoa(vTotal),
-		Balance:     strconv.Itoa(*dataBalance.Balance),
-	}); err != nil {
-		return err
+	go func() {
+		defer wt.Done()
+		err := make(chan error, 1)
+		InsertTransactionHistory(u.db, &entity.TransactionHistory{
+			UserId:      req.UserId,
+			NoKartu:     req.NoKartu,
+			CreatedDate: time.Now().Format("2006-01-02 15:04:05"),
+			UpdateDate:  time.Now().Format("2006-01-02 15:04:05"),
+			Setor:       "0",
+			Tarik:       strconv.Itoa(vTotal),
+			Balance:     strconv.Itoa(*dataBalance.Balance),
+		}, err)
+		errTrxHist = <-err
+	}()
+
+	wt.Wait()
+	if errTrxHist != nil {
+		return errTrxHist
+	}
+	if errInsertTopUp != nil {
+		return errInsertTopUp
+	}
+	if errUpdateBal != nil {
+		return errUpdateBal
 	}
 
 	return nil
+}
+
+func InsertTransactionHistory(dbs db.TopUpRepo, req *entity.TransactionHistory, errChan chan error) {
+	errChan <- dbs.InsertTransactionHistory(req)
+}
+
+func UpdateBalance(dbs db.TopUpRepo, req *entity.EMoney, errChan chan error) {
+	errChan <- dbs.UpdateBalance(req)
+}
+
+func InsertTopUp(dbs db.TopUpRepo, req *entity.TopUp, errChan chan error) {
+	errChan <- dbs.InsertTopUp(req)
 }

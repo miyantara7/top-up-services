@@ -1,6 +1,6 @@
 client:
   eMoneyServices:
     tls: false
-    host: emoney-services
+    host: localhost
     port: 9903
     timeout: 1500
